@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
-  "name": "Twitch PiP Toggle",
+  "name": "OpenFloat",
   "author": "Paul Harrer",
   "version": "1.0",
-  "description": "Adds PiP (Picture-in-Picture) toggle to Twitch.tv",
+  "description": "Adds PiP (Picture-in-Picture) toggle to sites that don't support it natively.",
   "content_scripts": [
     {
       "matches": ["*://*.twitch.tv/*"],
