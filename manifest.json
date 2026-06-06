@@ -1,0 +1,13 @@
+{
+  "manifest_version": 3,
+  "name": "Twitch PiP Toggle",
+  "author": "Paul Harrer",
+  "version": "1.0",
+  "description": "Adds PiP (Picture-in-Picture) toggle to Twitch.tv",
+  "content_scripts": [
+    {
+      "matches": ["*://*.twitch.tv/*"],
+      "js": ["content.js"]
+    }
+  ]
+}
