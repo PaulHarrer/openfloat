@@ -13,9 +13,12 @@
     {
       "matches": [
         "*://*.twitch.tv/*",
-        "*://*.youtube.com/*"
+        "*://*.youtube.com/*",
+        "*://*.joyn.de/*",
+        "*://*.joyn.at/*"
       ],
-      "js": ["content.js"]
+      "js": ["content.js"],
+      "all_frames": true
     }
   ]
 }

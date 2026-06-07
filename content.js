@@ -1,3 +1,62 @@
+function querySelectorDeep(selector, root = document) {
+    const element = root.querySelector(selector);
+    if (element) return element;
+
+    const all = root.querySelectorAll('*');
+    for (const el of all) {
+        if (el.shadowRoot) {
+            const found = querySelectorDeep(selector, el.shadowRoot);
+            if (found) return found;
+        }
+    }
+    return null;
+}
+
+function findAllVideosDeep(root = document, results = []) {
+    if (!root) return results;
+    const videos = root.querySelectorAll('video');
+    for (const v of videos) {
+        results.push(v);
+    }
+
+    const all = root.querySelectorAll('*');
+    for (const el of all) {
+        if (el.shadowRoot) {
+            findAllVideosDeep(el.shadowRoot, results);
+        }
+    }
+    return results;
+}
+
+function findActiveVideoDeep() {
+    const videos = findAllVideosDeep();
+    if (videos.length === 0) return null;
+    if (videos.length === 1) return videos[0];
+
+    let bestVideo = null;
+    let bestScore = -1;
+
+    for (const video of videos) {
+        let score = 0;
+        
+        // Active source
+        if (video.src || video.querySelector('source')) score += 10;
+        // Visibility
+        if (video.offsetWidth > 0 && video.offsetHeight > 0) score += 5;
+        // Playing status indicators
+        if (video.currentTime > 0) score += 5;
+        if (!video.paused) score += 5;
+        if (video.readyState > 0) score += 3;
+
+        if (score > bestScore) {
+            bestScore = score;
+            bestVideo = video;
+        }
+    }
+
+    return bestVideo || videos[0];
+}
+
 function handleTwitchPiP() {
     if (document.getElementById('custom-twitch-pip-button')) return;
 
@@ -120,12 +179,71 @@ function handleYouTubePiP() {
     }
 }
 
+function handleJoynPiP() {
+    if (querySelectorDeep('#custom-joyn-pip-button')) return;
+
+    const fullscreenButton = querySelectorDeep('.fullscreen-button');
+    if (!fullscreenButton) return;
+
+    const pipButton = document.createElement('button');
+    pipButton.id = 'custom-joyn-pip-button';
+    pipButton.type = 'button';
+    pipButton.className = 'button pip-button visible';
+    
+    // Inline styling to ensure visual consistency and visibility matching other control bar elements
+    pipButton.style.display = 'inline-flex';
+    pipButton.style.alignItems = 'center';
+    pipButton.style.justifyContent = 'center';
+    pipButton.style.cursor = 'pointer';
+
+    pipButton.title = 'Bild-in-Bild';
+    pipButton.setAttribute('aria-label', 'Bild-in-Bild');
+    pipButton.setAttribute('tabindex', '0');
+
+    // Use SVG styled with the standard icon class to match the player control buttons
+    pipButton.innerHTML = `
+        <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" style="display: block; margin: auto; width: 24px; height: 24px;">
+            <path fill="currentColor" d="M19 7h-8v6h8V7zm2-4H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16.01H3V4.98h18v14.03z"></path>
+        </svg>
+    `;
+
+    pipButton.addEventListener('click', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+
+        const video = findActiveVideoDeep();
+        if (!video) {
+            console.error("OpenFloat: Kein aktives Video-Element auf Joyn gefunden.");
+            return;
+        }
+
+        if (video.disablePictureInPicture) {
+            video.disablePictureInPicture = false;
+        }
+
+        try {
+            if (document.pictureInPictureElement) {
+                await document.exitPictureInPicture();
+            } else {
+                await video.requestPictureInPicture();
+            }
+        } catch (error) {
+            console.error("OpenFloat: Fehler beim Umschalten von PiP auf Joyn:", error);
+        }
+    });
+
+    fullscreenButton.parentNode.insertBefore(pipButton, fullscreenButton);
+}
+
 function runInjection() {
     const hostname = window.location.hostname;
     if (hostname.includes('twitch.tv')) {
         handleTwitchPiP();
     } else if (hostname.includes('youtube.com')) {
         handleYouTubePiP();
+    } else if (hostname.includes('joyn.de') || hostname.includes('joyn.at')) {
+        handleJoynPiP();
     }
 }
 
@@ -137,3 +255,6 @@ observer.observe(document.body, { childList: true, subtree: true });
 
 // Run once immediately
 runInjection();
+
+// Run periodically to handle dynamic SPAs, iframe updates, and players initialized asynchronously within Shadow DOMs
+setInterval(runInjection, 1000);
