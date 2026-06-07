@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="public/icons/icon128.png" width="128" alt="OpenFloat Logo">
+  <img src="icons/icon128.png" width="128" alt="OpenFloat Logo">
 </p>
 
 # OpenFloat
@@ -16,6 +16,7 @@ OpenFloat currently adds native Picture-in-Picture support and controls to the f
 | Twitch | `twitch.tv` |
 | Joyn | `joyn.at`, `joyn.de` |
 | ORF ON | `on.orf.at` |
+| ZDF | `zdf.de`, `zdfheute.de` |
 
 ## License
 

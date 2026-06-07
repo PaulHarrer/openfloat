@@ -5,6 +5,8 @@ export default defineContentScript({
     '*://*.joyn.de/*',
     '*://*.joyn.at/*',
     '*://*.orf.at/*',
+    '*://*.zdf.de/*',
+    '*://*.zdfheute.de/*',
   ],
   allFrames: true,
   main() {
@@ -289,6 +291,79 @@ export default defineContentScript({
       fullscreenButton.parentNode!.insertBefore(pipButton, fullscreenButton);
     }
 
+    function handleZdfPiP() {
+      if (document.getElementById('custom-zdf-pip-button')) return;
+
+      const fullscreenButton = document.querySelector('.button-fullscreen');
+      if (!fullscreenButton) return;
+
+      const fullscreenContainer = fullscreenButton.closest('[class*="fullscreen-control"]');
+      if (!fullscreenContainer) return;
+
+      // Add custom styles if they don't exist yet
+      if (!document.getElementById('custom-zdf-pip-style')) {
+        const style = document.createElement('style');
+        style.id = 'custom-zdf-pip-style';
+        style.textContent = `
+          .zdfplayer-icon-pip::before {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M19 7h-8v6h8V7zm2-4H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16.01H3V4.98h18v14.03z'/%3E%3C/svg%3E") !important;
+          }
+        `;
+        document.head.appendChild(style);
+      }
+
+      const pipButton = document.createElement('button');
+      for (const attr of fullscreenButton.attributes) {
+        if (attr.name !== 'class' && attr.name !== 'aria-label' && attr.name !== 'aria-controls') {
+          pipButton.setAttribute(attr.name, attr.value);
+        }
+      }
+      pipButton.id = 'custom-zdf-pip-button';
+      pipButton.setAttribute('aria-label', 'Bild-in-Bild');
+      pipButton.title = 'Bild-in-Bild';
+
+      const classList = Array.from(fullscreenButton.classList)
+        .filter(c => c !== 'button-fullscreen' && c !== 'button-fullscreen-exit');
+      pipButton.className = classList.join(' ') + ' button-pip';
+
+      const span = document.createElement('span');
+      const fullscreenSpan = fullscreenButton.querySelector('span');
+      if (fullscreenSpan) {
+        const spanClasses = Array.from(fullscreenSpan.classList)
+          .filter(c => c !== 'zdfplayer-icon-fullscreen' && c !== 'zdfplayer-icon-fullscreen-exit');
+        span.className = spanClasses.join(' ') + ' zdfplayer-icon-pip';
+      } else {
+        span.className = 'zdfplayer-button-icon zdfplayer-icon-pip';
+      }
+      pipButton.appendChild(span);
+
+      pipButton.addEventListener('click', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const video = findActiveVideoDeep();
+        if (!video) {
+          console.error('OpenFloat: Kein aktives Video-Element auf ZDF gefunden.');
+          return;
+        }
+
+        video.removeAttribute('disablepictureinpicture');
+        video.disablePictureInPicture = false;
+
+        try {
+          if (document.pictureInPictureElement) {
+            await document.exitPictureInPicture();
+          } else {
+            await video.requestPictureInPicture();
+          }
+        } catch (error) {
+          console.error('OpenFloat: Fehler beim Umschalten von PiP auf ZDF:', error);
+        }
+      });
+
+      fullscreenContainer.parentNode!.insertBefore(pipButton, fullscreenContainer);
+    }
+
     function runInjection() {
       const hostname = window.location.hostname;
       if (hostname.includes('twitch.tv')) {
@@ -299,6 +374,8 @@ export default defineContentScript({
         handleJoynPiP();
       } else if (hostname.includes('orf.at')) {
         handleOrfPiP();
+      } else if (hostname.includes('zdf.de') || hostname.includes('zdfheute.de')) {
+        handleZdfPiP();
       }
     }
 
