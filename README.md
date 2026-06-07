@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="icons/icon128.png" width="128" alt="OpenFloat Logo">
+  <img src="public/icons/icon128.png" width="128" alt="OpenFloat Logo">
 </p>
 
 # OpenFloat
