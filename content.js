@@ -236,6 +236,59 @@ function handleJoynPiP() {
     fullscreenButton.parentNode.insertBefore(pipButton, fullscreenButton);
 }
 
+function handleOrfPiP() {
+    if (document.getElementById('player-button-pip')) return;
+
+    const fullscreenButton = document.getElementById('player-button-fullscreen');
+    if (!fullscreenButton) return;
+
+    const pipButton = document.createElement('button');
+    pipButton.type = 'button';
+    pipButton.className = 'player-controls-button b-button';
+    pipButton.id = 'player-button-pip';
+    pipButton.setAttribute('data-test-id', 'player-button-pip');
+    pipButton.setAttribute('tabindex', '0');
+    pipButton.style.setProperty('--button-width', '1.3');
+    pipButton.style.setProperty('--button-height', '1.3');
+
+    const iconContainer = document.createElement('div');
+    iconContainer.className = 'b-icon button-icon';
+    const svgPath = 'M19 7h-8v6h8V7zm2-4H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16.01H3V4.98h18v14.03z';
+    iconContainer.style.backgroundImage = `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23fff'%3E%3Cpath d='${svgPath}'/%3E%3C/svg%3E")`;
+
+    const textSpan = document.createElement('span');
+    textSpan.className = 'visuallyhidden';
+    textSpan.setAttribute('aria-live', 'polite');
+    textSpan.setAttribute('aria-atomic', 'true');
+    textSpan.textContent = 'Bild-in-Bild';
+
+    pipButton.appendChild(iconContainer);
+    pipButton.appendChild(textSpan);
+
+    pipButton.addEventListener('click', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const video = findActiveVideoDeep();
+        if (!video) {
+            console.error("OpenFloat: Kein aktives Video-Element auf ORF gefunden.");
+            return;
+        }
+
+        try {
+            if (document.pictureInPictureElement) {
+                await document.exitPictureInPicture();
+            } else {
+                await video.requestPictureInPicture();
+            }
+        } catch (error) {
+            console.error("OpenFloat: Fehler beim Umschalten von PiP auf ORF:", error);
+        }
+    });
+
+    fullscreenButton.parentNode.insertBefore(pipButton, fullscreenButton);
+}
+
 function runInjection() {
     const hostname = window.location.hostname;
     if (hostname.includes('twitch.tv')) {
@@ -244,6 +297,8 @@ function runInjection() {
         handleYouTubePiP();
     } else if (hostname.includes('joyn.de') || hostname.includes('joyn.at')) {
         handleJoynPiP();
+    } else if (hostname.includes('orf.at')) {
+        handleOrfPiP();
     }
 }
 

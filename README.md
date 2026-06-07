@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="icons/icon128.png" width="128" alt="OpenFloat Logo">
+</p>
+
 # OpenFloat
 
 Browser extension to enable Picture-in-Picture (PiP) toggle on sites that do not support it natively.
@@ -11,6 +15,7 @@ OpenFloat currently adds native Picture-in-Picture support and controls to the f
 | YouTube | `youtube.com` |
 | Twitch | `twitch.tv` |
 | Joyn | `joyn.at`, `joyn.de` |
+| ORF ON | `on.orf.at` |
 
 ## License
 

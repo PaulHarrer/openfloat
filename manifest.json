@@ -15,7 +15,8 @@
         "*://*.twitch.tv/*",
         "*://*.youtube.com/*",
         "*://*.joyn.de/*",
-        "*://*.joyn.at/*"
+        "*://*.joyn.at/*",
+        "*://*.orf.at/*"
       ],
       "js": ["content.js"],
       "all_frames": true
