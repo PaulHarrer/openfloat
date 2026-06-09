@@ -7,6 +7,7 @@ export default defineContentScript({
     '*://*.orf.at/*',
     '*://*.zdf.de/*',
     '*://*.zdfheute.de/*',
+    '*://*.crunchyroll.com/*',
   ],
   allFrames: true,
   main() {
@@ -64,6 +65,64 @@ export default defineContentScript({
       }
 
       return bestVideo || videos[0];
+    }
+
+    function handleCrunchyrollPiP() {
+      if (document.getElementById('custom-crunchyroll-pip-button')) return;
+
+      const fullscreenButton = document.querySelector('[data-testid="fullscreen-button"]');
+      if (!fullscreenButton) return;
+
+      const fullscreenWrapper = fullscreenButton.parentElement;
+      if (!fullscreenWrapper) return;
+
+      const pipWrapper = document.createElement('div');
+      pipWrapper.className = fullscreenWrapper.className;
+      pipWrapper.id = 'custom-crunchyroll-pip-button';
+
+      const pipButton = document.createElement('button');
+      pipButton.type = 'button';
+      pipButton.className = fullscreenButton.className;
+      pipButton.setAttribute('aria-label', 'Bild-in-Bild');
+      pipButton.title = 'Bild-in-Bild';
+
+      pipButton.innerHTML = `
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="kat:w-24 kat:h-24 kat:@lg:w-40 kat:@lg:h-40 kat:shrink-0" aria-hidden="true">
+          <path fill-rule="evenodd" clip-rule="evenodd" d="M19 7h-8v6h8V7zm2-4H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16.01H3V4.98h18v14.03z" fill="currentColor"></path>
+        </svg>
+      `;
+
+      pipButton.addEventListener('click', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+
+        let video = findActiveVideoDeep();
+        if (!video) {
+          video = document.querySelector('video');
+        }
+
+        if (!video) {
+          console.error('OpenFloat: Kein aktives Video-Element auf Crunchyroll gefunden.');
+          return;
+        }
+
+        video.removeAttribute('disablepictureinpicture');
+        video.disablePictureInPicture = false;
+
+        try {
+          if (document.pictureInPictureElement) {
+            await document.exitPictureInPicture();
+          } else {
+            await video.requestPictureInPicture();
+          }
+        } catch (error) {
+          console.error('OpenFloat: Fehler beim Umschalten von PiP auf Crunchyroll:', error);
+        }
+      });
+
+      pipWrapper.appendChild(pipButton);
+      fullscreenWrapper.parentNode!.insertBefore(pipWrapper, fullscreenWrapper);
     }
 
     function handleTwitchPiP() {
@@ -376,6 +435,8 @@ export default defineContentScript({
         handleOrfPiP();
       } else if (hostname.includes('zdf.de') || hostname.includes('zdfheute.de')) {
         handleZdfPiP();
+      } else if (hostname.includes('crunchyroll.com')) {
+        handleCrunchyrollPiP();
       }
     }
 

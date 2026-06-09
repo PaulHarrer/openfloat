@@ -10,13 +10,14 @@ Browser extension to enable Picture-in-Picture (PiP) toggle on sites that do not
 
 OpenFloat currently adds native Picture-in-Picture support and controls to the following video platforms:
 
-| Platform | Supported Domains |
-|:-----|:--------:|
-| YouTube | `youtube.com` |
-| Twitch | `twitch.tv` |
-| Joyn | `joyn.at`, `joyn.de` |
-| ORF ON | `on.orf.at` |
-| ZDF | `zdf.de`, `zdfheute.de` |
+| Platform    |    Supported Domains    |
+|:------------|:-----------------------:|
+| Crunchyroll |    `crunchyroll.com`    |
+| Joyn        |  `joyn.at`, `joyn.de`   |
+| ORF ON      |       `on.orf.at`       |
+| Twitch      |       `twitch.tv`       |
+| YouTube     |      `youtube.com`      |
+| ZDF         | `zdf.de`, `zdfheute.de` |
 
 ## License
 
