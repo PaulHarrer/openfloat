@@ -8,6 +8,7 @@ export default defineContentScript({
     '*://*.zdf.de/*',
     '*://*.zdfheute.de/*',
     '*://*.crunchyroll.com/*',
+    '*://*.netflix.com/*',
   ],
   allFrames: true,
   main() {
@@ -423,6 +424,86 @@ export default defineContentScript({
       fullscreenContainer.parentNode!.insertBefore(pipButton, fullscreenContainer);
     }
 
+    function handleNetflixPiP() {
+      if (document.getElementById('custom-netflix-pip-wrapper')) return;
+
+      const fullscreenButton = document.querySelector('[data-uia="control-fullscreen-enter"], [data-uia="control-fullscreen-exit"]');
+      if (!fullscreenButton) return;
+
+      const fullscreenWrapper = fullscreenButton.parentElement;
+      if (!fullscreenWrapper) return;
+
+      const pipWrapper = document.createElement('div');
+      pipWrapper.className = fullscreenWrapper.className;
+      pipWrapper.id = 'custom-netflix-pip-wrapper';
+
+      const pipButton = document.createElement('button');
+      pipButton.type = 'button';
+      pipButton.className = fullscreenButton.className;
+      pipButton.setAttribute('aria-label', 'Bild-in-Bild');
+      pipButton.title = 'Bild-in-Bild';
+      pipButton.setAttribute('data-uia', 'control-pip');
+
+      const fullscreenIconContainer = fullscreenButton.querySelector('div[role="presentation"]');
+      const iconContainer = document.createElement('div');
+      if (fullscreenIconContainer) {
+        iconContainer.className = fullscreenIconContainer.className;
+      } else {
+        iconContainer.className = 'control-medium';
+      }
+      iconContainer.setAttribute('role', 'presentation');
+      iconContainer.innerHTML = `
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" role="img" xmlns="http://www.w3.org/2000/svg">
+          <path fill="currentColor" fill-rule="evenodd" clip-rule="evenodd" d="M19 7h-8v6h8V7zm2-4H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16.01H3V4.98h18v14.03z"></path>
+        </svg>
+      `;
+      pipButton.appendChild(iconContainer);
+      pipWrapper.appendChild(pipButton);
+
+      const sibling = fullscreenWrapper.previousElementSibling;
+      const pipSpacer = document.createElement('div');
+      pipSpacer.id = 'custom-netflix-pip-spacer';
+      if (sibling && !sibling.querySelector('button')) {
+        pipSpacer.className = sibling.className;
+        pipSpacer.setAttribute('style', sibling.getAttribute('style') || 'min-width: 3rem; width: 3rem;');
+      } else {
+        pipSpacer.className = 'default-ltr-iqcdef-cache-1npqywr';
+        pipSpacer.setAttribute('style', 'min-width: 3rem; width: 3rem;');
+      }
+
+      pipButton.addEventListener('click', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+
+        let video = findActiveVideoDeep();
+        if (!video) {
+          video = document.querySelector('video');
+        }
+
+        if (!video) {
+          console.error('OpenFloat: Kein aktives Video-Element auf Netflix gefunden.');
+          return;
+        }
+
+        video.removeAttribute('disablepictureinpicture');
+        video.disablePictureInPicture = false;
+
+        try {
+          if (document.pictureInPictureElement) {
+            await document.exitPictureInPicture();
+          } else {
+            await video.requestPictureInPicture();
+          }
+        } catch (error) {
+          console.error('OpenFloat: Fehler beim Umschalten von PiP auf Netflix:', error);
+        }
+      });
+
+      fullscreenWrapper.parentNode!.insertBefore(pipWrapper, fullscreenWrapper);
+      fullscreenWrapper.parentNode!.insertBefore(pipSpacer, fullscreenWrapper);
+    }
+
     function runInjection() {
       const hostname = window.location.hostname;
       if (hostname.includes('twitch.tv')) {
@@ -437,6 +518,8 @@ export default defineContentScript({
         handleZdfPiP();
       } else if (hostname.includes('crunchyroll.com')) {
         handleCrunchyrollPiP();
+      } else if (hostname.includes('netflix.com')) {
+        handleNetflixPiP();
       }
     }
 

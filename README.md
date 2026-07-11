@@ -14,6 +14,7 @@ OpenFloat currently adds native Picture-in-Picture support and controls to the f
 |:------------|:-----------------------:|
 | Crunchyroll |    `crunchyroll.com`    |
 | Joyn        |  `joyn.at`, `joyn.de`   |
+| Netflix     |      `netflix.com`      |
 | ORF ON      |       `on.orf.at`       |
 | Twitch      |       `twitch.tv`       |
 | YouTube     |      `youtube.com`      |
