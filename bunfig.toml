@@ -1,0 +1,3 @@
+[install]
+# 7 days. Only resolve package versions published at least this long ago.
+minimumReleaseAge = 604800

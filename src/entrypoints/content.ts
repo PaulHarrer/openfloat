@@ -126,50 +126,228 @@ export default defineContentScript({
       fullscreenWrapper.parentNode!.insertBefore(pipWrapper, fullscreenWrapper);
     }
 
-    function handleTwitchPiP() {
-      if (document.getElementById('custom-twitch-pip-button')) return;
+    function selectorHasClass(selector: string, className: string): boolean {
+      return selector.split(/[^a-zA-Z0-9_-]+/).includes(className);
+    }
 
+    function readTwitchButtonHover(button: Element): { color: string; backgroundColor: string } {
+      const classes = [
+        ...button.classList,
+        ...(button.querySelector('.tw-svg')?.classList ?? []),
+      ];
+      let color = '';
+      let backgroundColor = '';
+      let colorScore = 0;
+
+      const visit = (rules: CSSRuleList) => {
+        for (let i = 0; i < rules.length; i++) {
+          const rule = rules[i];
+          if (rule.type === CSSRule.STYLE_RULE) {
+            const styleRule = rule as CSSStyleRule;
+            const selector = styleRule.selectorText || '';
+            if (!selector.includes(':hover')) continue;
+
+            const score = classes.reduce((total, className) => total + (selectorHasClass(selector, className) ? 1 : 0), 0);
+            if (score === 0 || score < colorScore) continue;
+
+            const nextColor = styleRule.style.getPropertyValue('color').trim();
+            const nextFill = styleRule.style.getPropertyValue('fill').trim();
+            const resolvedColor = nextColor && nextColor !== 'inherit' && nextColor.toLowerCase() !== 'currentcolor'
+              ? nextColor
+              : nextFill && nextFill !== 'inherit' && nextFill.toLowerCase() !== 'currentcolor'
+                ? nextFill
+                : '';
+            if (!resolvedColor) continue;
+
+            colorScore = score;
+            color = resolvedColor;
+            const nextBackground = styleRule.style.getPropertyValue('background-color').trim();
+            backgroundColor = nextBackground && nextBackground !== 'inherit' && nextBackground !== 'transparent' && !selector.includes('svg')
+              ? nextBackground
+              : '';
+          } else if ('cssRules' in rule) {
+            visit((rule as CSSGroupingRule).cssRules);
+          }
+        }
+      };
+
+      for (const sheet of document.styleSheets) {
+        try {
+          visit(sheet.cssRules);
+        } catch {
+          // Cross-origin sheets are not readable.
+        }
+      }
+
+      if (!color) {
+        const computed = getComputedStyle(button);
+        for (const name of ['--color-text-button-overlay-hover', '--color-text-overlay-hover', '--color-twitch-purple-11']) {
+          if (computed.getPropertyValue(name).trim()) {
+            color = `var(${name})`;
+            break;
+          }
+        }
+      }
+
+      return {
+        color: color || 'var(--color-twitch-purple-11, #bf94ff)',
+        backgroundColor,
+      };
+    }
+
+    function ensureTwitchPipHoverStyle(button: Element) {
+      const hover = readTwitchButtonHover(button);
+      let style = document.getElementById('custom-twitch-pip-style');
+      if (!style) {
+        style = document.createElement('style');
+        style.id = 'custom-twitch-pip-style';
+        document.head.appendChild(style);
+      }
+
+      const backgroundRule = hover.backgroundColor ? `background-color: ${hover.backgroundColor} !important;` : '';
+      style.textContent = `
+        #custom-twitch-pip-button {
+          display: flex;
+          align-items: center;
+          align-self: center;
+          height: 100%;
+        }
+        #custom-twitch-pip-button > div,
+        #custom-twitch-pip-button button {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          height: 100%;
+        }
+        #custom-twitch-pip-button button {
+          cursor: pointer;
+          color: inherit;
+          transition: color 0.1s ease, background-color 0.1s ease;
+        }
+        #custom-twitch-pip-button svg {
+          display: block;
+          width: 20px !important;
+          height: 20px !important;
+          fill: currentColor;
+        }
+        #custom-twitch-pip-button button:hover,
+        #custom-twitch-pip-button button:focus-visible {
+          color: ${hover.color} !important;
+          ${backgroundRule}
+        }
+        #custom-twitch-pip-button button:hover svg,
+        #custom-twitch-pip-button button:focus-visible svg {
+          fill: currentColor !important;
+        }
+      `;
+    }
+
+    function syncTwitchButtonClasses(pipContainer: HTMLElement, fullscreenButton: Element, fullscreenContainer: Element) {
+      const button = pipContainer.querySelector('button');
+      if (button) button.className = fullscreenButton.className;
+
+      const nativeInner = fullscreenContainer.firstElementChild;
+      const ourInner = pipContainer.firstElementChild;
+      if (nativeInner && ourInner && nativeInner !== fullscreenButton) {
+        ourInner.className = nativeInner.className;
+      }
+
+      const nativeWrapper = fullscreenButton.querySelector('.tw-svg');
+      const ourWrapper = pipContainer.querySelector('.tw-svg');
+      if (!nativeWrapper || !ourWrapper) return;
+
+      ourWrapper.className = nativeWrapper.className;
+      if (nativeWrapper.parentElement && ourWrapper.parentElement) {
+        ourWrapper.parentElement.className = nativeWrapper.parentElement.className;
+      }
+    }
+
+    function visibleSvg(root: ParentNode): SVGElement | null {
+      const svgs = root.querySelectorAll('svg');
+      for (const svg of svgs) {
+        const rect = svg.getBoundingClientRect();
+        const style = getComputedStyle(svg);
+        if (rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden') {
+          return svg;
+        }
+      }
+      return svgs[0] ?? null;
+    }
+
+    function alignTwitchPipIcon(pipContainer: HTMLElement, fullscreenButton: Element): boolean {
+      const svg = pipContainer.querySelector('svg');
+      const nativeSvg = visibleSvg(fullscreenButton);
+      if (!svg || !nativeSvg) return false;
+
+      const nativeRect = nativeSvg.getBoundingClientRect();
+      const ourRect = svg.getBoundingClientRect();
+      if (nativeRect.height < 8 || ourRect.height < 8) return false;
+
+      const applied = Number(pipContainer.dataset.offset || '0');
+      const delta = Math.round((nativeRect.top + nativeRect.height / 2) - (ourRect.top + ourRect.height / 2) + applied);
+      pipContainer.dataset.offset = String(delta);
+      pipContainer.style.transform = Math.abs(delta) < 1 ? '' : `translateY(${delta}px)`;
+      return true;
+    }
+
+    function handleTwitchPiP() {
       const fullscreenButton = document.querySelector('[data-a-target="player-fullscreen-button"]');
       if (!fullscreenButton) return;
 
       const fullscreenContainer = fullscreenButton.closest('.InjectLayout-sc-1i43xsx-0');
       if (!fullscreenContainer) return;
 
-      const pipContainer = document.createElement('div');
-      pipContainer.className = fullscreenContainer.className;
-      pipContainer.id = 'custom-twitch-pip-button';
+      let pipContainer = document.getElementById('custom-twitch-pip-button');
+      if (pipContainer?.dataset.aligned === 'true') return;
 
-      pipContainer.innerHTML = `
-        <div class="Layout-sc-1xcs6mc-0 ScLayoutCssVars-sc-1pn65j5-0 jfyitl hjknGi">
-            <button class="ScCoreButton-sc-ocjdkq-0 glPhvE ScButtonIcon-sc-9yap0r-0 dgVYJo" aria-label="Bild-in-Bild (PiP)" aria-haspopup="menu">
-                <div class="ButtonIconFigure-sc-1emm8lf-0 lnTwMD">
-                    <div class="ScSvgWrapper-sc-wkgzod-0 kccyMt tw-svg">
-                        <svg width="24" height="24" viewBox="0 0 24 24" focusable="false" aria-hidden="true" fill="currentColor">
-                            <path d="M19 7h-8v6h8V7zm2-4H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16.01H3V4.98h18v14.03z"></path>
-                        </svg>
-                    </div>
-                </div>
-            </button>
-        </div>
-      `;
+      ensureTwitchPipHoverStyle(fullscreenButton);
 
-      const buttonElement = pipContainer.querySelector('button')!;
-      buttonElement.addEventListener('click', async () => {
-        const video = document.querySelector('video');
-        if (!video) return;
+      if (!pipContainer) {
+        pipContainer = document.createElement('div');
+        pipContainer.className = fullscreenContainer.className;
+        pipContainer.id = 'custom-twitch-pip-button';
 
-        try {
-          if (document.pictureInPictureElement) {
-            await document.exitPictureInPicture();
-          } else {
-            await video.requestPictureInPicture();
+        // Player glyphs are 20px. A 24px SVG rendered larger than settings/fullscreen.
+        pipContainer.innerHTML = `
+          <div class="Layout-sc-1xcs6mc-0 ScLayoutCssVars-sc-1pn65j5-0 jfyitl hjknGi">
+              <button class="ScCoreButton-sc-ocjdkq-0 glPhvE ScButtonIcon-sc-9yap0r-0 dgVYJo" aria-label="Bild-in-Bild (PiP)">
+                  <div class="ButtonIconFigure-sc-1emm8lf-0 lnTwMD">
+                      <div class="ScSvgWrapper-sc-wkgzod-0 kccyMt tw-svg" style="width: 20px !important; height: 20px !important;">
+                          <svg width="20" height="20" viewBox="0 0 24 24" focusable="false" aria-hidden="true" fill="currentColor" style="width: 20px !important; height: 20px !important;">
+                              <path d="M19 7h-8v6h8V7zm2-4H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16.01H3V4.98h18v14.03z"></path>
+                          </svg>
+                      </div>
+                  </div>
+              </button>
+          </div>
+        `;
+
+        const buttonElement = pipContainer.querySelector('button')!;
+        buttonElement.addEventListener('click', async (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+
+          const video = document.querySelector('video');
+          if (!video) return;
+
+          try {
+            if (document.pictureInPictureElement) {
+              await document.exitPictureInPicture();
+            } else {
+              await video.requestPictureInPicture();
+            }
+          } catch (error) {
+            console.error('Fehler beim Umschalten von PiP:', error);
           }
-        } catch (error) {
-          console.error('Fehler beim Umschalten von PiP:', error);
-        }
-      });
+        });
 
-      fullscreenContainer.parentNode!.insertBefore(pipContainer, fullscreenContainer);
+        fullscreenContainer.parentNode!.insertBefore(pipContainer, fullscreenContainer);
+      }
+
+      syncTwitchButtonClasses(pipContainer, fullscreenButton, fullscreenContainer);
+      if (alignTwitchPipIcon(pipContainer, fullscreenButton)) {
+        pipContainer.dataset.aligned = 'true';
+      }
     }
 
     function handleYouTubePiP() {
