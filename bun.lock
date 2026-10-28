@@ -5,7 +5,7 @@
     "": {
       "name": "openfloat",
       "devDependencies": {
-        "wxt": "^0.20.0",
+        "wxt": "^0.20.27",
       },
     },
   },
