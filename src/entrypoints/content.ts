@@ -356,6 +356,11 @@ export default defineContentScript({
 
       if (!fullscreenButton) return;
 
+      const player = fullscreenButton.closest('.html5-video-player');
+      const modernIcons = !!player?.classList.contains('ytp-delhi-modern')
+        || !!player?.classList.contains('ytp-delhi-modern-icons')
+        || !!fullscreenButton.closest('.ytp-right-controls-right');
+
       if (!document.getElementById('custom-youtube-pip-style')) {
         const style = document.createElement('style');
         style.id = 'custom-youtube-pip-style';
@@ -375,25 +380,60 @@ export default defineContentScript({
             left: 50% !important;
             transform: translate(-50%, -50%) !important;
           }
+          /* New pill controls draw 24px icons (18px when the player is narrow). */
+          .ytp-delhi-modern .ytp-pip-button svg,
+          .ytp-delhi-modern-icons .ytp-pip-button svg,
+          .ytp-pip-button[data-pip-icon="modern"] svg {
+            width: var(--yt-delhi-icon-size, 24px) !important;
+            height: var(--yt-delhi-icon-size, 24px) !important;
+            position: static !important;
+            top: auto !important;
+            left: auto !important;
+            transform: none !important;
+          }
+          .ytp-xsmall-width-mode.ytp-delhi-modern .ytp-pip-button svg,
+          .ytp-xsmall-width-mode.ytp-delhi-modern-icons .ytp-pip-button svg,
+          .ytp-xsmall-width-mode .ytp-pip-button[data-pip-icon="modern"] svg {
+            width: 18px !important;
+            height: 18px !important;
+          }
         `;
         document.head.appendChild(style);
       }
 
+      const modernSvg = `
+        <svg height="24" width="24" viewBox="0 0 24 24">
+          <path d="M19 11h-8v6h8v-6zm4 8V4.98C23 3.88 22.1 3 21 3H3c-1.1 0-2 .88-2 1.98V19c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2zm-2 .02H3V4.97h18v14.05z" fill="#fff"></path>
+        </svg>
+      `;
+      const classicSvg = `
+        <svg height="100%" version="1.1" viewBox="0 0 36 36" width="100%">
+          <path d="M25,17 L17,17 L17,23 L25,23 L25,17 L25,17 Z M29,25 L29,10.98 C29,9.88 28.1,9 27,9 L9,9 C7.9,9 7,9.88 7,10.98 L7,25 C7,26.1 7.9,27 9,27 L27,27 C28.1,27 29,26.1 29,25 L29,25 Z M27,25.02 L9,25.02 L9,10.97 L27,10.97 L27,25.02 L27,25.02 Z" fill="#fff"></path>
+        </svg>
+      `;
+      const iconVariant = modernIcons ? 'modern' : 'classic';
+
       if (!pipButton) {
         pipButton = document.createElement('button');
         pipButton.className = 'ytp-pip-button ytp-button';
+        pipButton.dataset.customPip = 'true';
         pipButton.title = 'Bild im Bild';
         pipButton.setAttribute('data-tooltip-title', 'Bild im Bild');
-        pipButton.innerHTML = `
-          <svg height="100%" version="1.1" viewBox="0 0 36 36" width="100%">
-            <use class="ytp-svg-shadow" xlink:href="#ytp-id-25"></use>
-            <path d="M25,17 L17,17 L17,23 L25,23 L25,17 L25,17 Z M29,25 L29,10.98 C29,9.88 28.1,9 27,9 L9,9 C7.9,9 7,9.88 7,10.98 L7,25 C7,26.1 7.9,27 9,27 L27,27 C28.1,27 29,26.1 29,25 L29,25 Z M27,25.02 L9,25.02 L9,10.97 L27,10.97 L27,25.02 L27,25.02 Z" fill="#fff" id="ytp-id-25"></path>
-          </svg>
-        `;
       }
 
-      if (pipButton.style.display !== 'inline-block') {
-        pipButton.style.setProperty('display', 'inline-block', 'important');
+      // Only restyle the button we injected. A native YouTube PiP control already matches.
+      if (pipButton.dataset.customPip === 'true' || pipButton.querySelector('#ytp-id-25')) {
+        pipButton.dataset.customPip = 'true';
+        if (pipButton.dataset.pipIcon !== iconVariant) {
+          pipButton.innerHTML = modernIcons ? modernSvg : classicSvg;
+          pipButton.dataset.pipIcon = iconVariant;
+        }
+      }
+
+      if (pipButton.style.display !== 'inline-flex') {
+        pipButton.style.setProperty('display', 'inline-flex', 'important');
+        pipButton.style.setProperty('align-items', 'center', 'important');
+        pipButton.style.setProperty('justify-content', 'center', 'important');
       }
 
       if (pipButton.parentNode !== fullscreenButton.parentNode || pipButton.nextElementSibling !== fullscreenButton) {
