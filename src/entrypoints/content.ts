@@ -12,6 +12,18 @@ export default defineContentScript({
   ],
   allFrames: true,
   main() {
+    // Browser UI language. German stays German; English and every other language use English.
+    const isGerman = (navigator.language || navigator.languages?.[0] || 'en').toLowerCase().startsWith('de');
+    const labels = isGerman
+      ? {
+          pip: 'Bild-in-Bild',
+          pipWithShortcut: 'Bild-in-Bild (PiP)',
+        }
+      : {
+          pip: 'Picture-in-Picture',
+          pipWithShortcut: 'Picture-in-Picture (PiP)',
+        };
+
     function querySelectorDeep(selector: string, root: Document | ShadowRoot = document): Element | null {
       const element = root.querySelector(selector);
       if (element) return element;
@@ -84,8 +96,8 @@ export default defineContentScript({
       const pipButton = document.createElement('button');
       pipButton.type = 'button';
       pipButton.className = fullscreenButton.className;
-      pipButton.setAttribute('aria-label', 'Bild-in-Bild');
-      pipButton.title = 'Bild-in-Bild';
+      pipButton.setAttribute('aria-label', labels.pip);
+      pipButton.title = labels.pip;
 
       pipButton.innerHTML = `
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="kat:w-24 kat:h-24 kat:@lg:w-40 kat:@lg:h-40 kat:shrink-0" aria-hidden="true">
@@ -310,7 +322,7 @@ export default defineContentScript({
         // Player glyphs are 20px. A 24px SVG rendered larger than settings/fullscreen.
         pipContainer.innerHTML = `
           <div class="Layout-sc-1xcs6mc-0 ScLayoutCssVars-sc-1pn65j5-0 jfyitl hjknGi">
-              <button class="ScCoreButton-sc-ocjdkq-0 glPhvE ScButtonIcon-sc-9yap0r-0 dgVYJo" aria-label="Bild-in-Bild (PiP)">
+              <button class="ScCoreButton-sc-ocjdkq-0 glPhvE ScButtonIcon-sc-9yap0r-0 dgVYJo" aria-label="${labels.pipWithShortcut}">
                   <div class="ButtonIconFigure-sc-1emm8lf-0 lnTwMD">
                       <div class="ScSvgWrapper-sc-wkgzod-0 kccyMt tw-svg" style="width: 20px !important; height: 20px !important;">
                           <svg width="20" height="20" viewBox="0 0 24 24" focusable="false" aria-hidden="true" fill="currentColor" style="width: 20px !important; height: 20px !important;">
@@ -417,8 +429,8 @@ export default defineContentScript({
         pipButton = document.createElement('button');
         pipButton.className = 'ytp-pip-button ytp-button';
         pipButton.dataset.customPip = 'true';
-        pipButton.title = 'Bild im Bild';
-        pipButton.setAttribute('data-tooltip-title', 'Bild im Bild');
+        pipButton.title = labels.pip;
+        pipButton.setAttribute('data-tooltip-title', labels.pip);
       }
 
       // Only restyle the button we injected. A native YouTube PiP control already matches.
@@ -477,8 +489,8 @@ export default defineContentScript({
       pipButton.style.alignItems = 'center';
       pipButton.style.justifyContent = 'center';
       pipButton.style.cursor = 'pointer';
-      pipButton.title = 'Bild-in-Bild';
-      pipButton.setAttribute('aria-label', 'Bild-in-Bild');
+      pipButton.title = labels.pip;
+      pipButton.setAttribute('aria-label', labels.pip);
       pipButton.setAttribute('tabindex', '0');
 
       pipButton.innerHTML = `
@@ -540,7 +552,7 @@ export default defineContentScript({
       textSpan.className = 'visuallyhidden';
       textSpan.setAttribute('aria-live', 'polite');
       textSpan.setAttribute('aria-atomic', 'true');
-      textSpan.textContent = 'Bild-in-Bild';
+      textSpan.textContent = labels.pip;
 
       pipButton.appendChild(iconContainer);
       pipButton.appendChild(textSpan);
@@ -597,8 +609,8 @@ export default defineContentScript({
         }
       }
       pipButton.id = 'custom-zdf-pip-button';
-      pipButton.setAttribute('aria-label', 'Bild-in-Bild');
-      pipButton.title = 'Bild-in-Bild';
+      pipButton.setAttribute('aria-label', labels.pip);
+      pipButton.title = labels.pip;
 
       const classList = Array.from(fullscreenButton.classList)
         .filter(c => c !== 'button-fullscreen' && c !== 'button-fullscreen-exit');
@@ -658,8 +670,8 @@ export default defineContentScript({
       const pipButton = document.createElement('button');
       pipButton.type = 'button';
       pipButton.className = fullscreenButton.className;
-      pipButton.setAttribute('aria-label', 'Bild-in-Bild');
-      pipButton.title = 'Bild-in-Bild';
+      pipButton.setAttribute('aria-label', labels.pip);
+      pipButton.title = labels.pip;
       pipButton.setAttribute('data-uia', 'control-pip');
 
       const fullscreenIconContainer = fullscreenButton.querySelector('div[role="presentation"]');
