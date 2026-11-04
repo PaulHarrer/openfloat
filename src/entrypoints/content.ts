@@ -12,17 +12,27 @@ export default defineContentScript({
   ],
   allFrames: true,
   main() {
-    // Browser UI language. German stays German; English and every other language use English.
-    const isGerman = (navigator.language || navigator.languages?.[0] || 'en').toLowerCase().startsWith('de');
-    const labels = isGerman
-      ? {
-          pip: 'Bild-in-Bild',
-          pipWithShortcut: 'Bild-in-Bild (PiP)',
-        }
-      : {
-          pip: 'Picture-in-Picture',
-          pipWithShortcut: 'Picture-in-Picture (PiP)',
-        };
+    // Browser language. Anything other than German, Spanish, or French falls back to English.
+    const locale = (navigator.language || navigator.languages?.[0] || 'en').toLowerCase().split('-')[0];
+    const labelsByLocale: Record<string, { pip: string; pipWithShortcut: string }> = {
+      de: {
+        pip: 'Bild-in-Bild',
+        pipWithShortcut: 'Bild-in-Bild (PiP)',
+      },
+      es: {
+        pip: 'Imagen en imagen',
+        pipWithShortcut: 'Imagen en imagen (PiP)',
+      },
+      fr: {
+        pip: "Image dans l'image",
+        pipWithShortcut: "Image dans l'image (PiP)",
+      },
+      en: {
+        pip: 'Picture-in-Picture',
+        pipWithShortcut: 'Picture-in-Picture (PiP)',
+      },
+    };
+    const labels = labelsByLocale[locale] ?? labelsByLocale.en;
 
     function querySelectorDeep(selector: string, root: Document | ShadowRoot = document): Element | null {
       const element = root.querySelector(selector);
